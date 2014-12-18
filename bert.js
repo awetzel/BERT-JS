@@ -27,6 +27,7 @@ function BertClass() {
 	this.SMALL_TUPLE = String.fromCharCode(104);
 	this.LARGE_TUPLE = String.fromCharCode(105);
 	this.NIL = String.fromCharCode(106);
+	this.MAP = String.fromCharCode(116);
 	this.ZERO = String.fromCharCode(0);
 }
 
@@ -158,8 +159,8 @@ BertClass.prototype.encode_float = function (Obj) {
 
 BertClass.prototype.encode_object = function (Obj) {
 	// Check if it's an atom, binary, or tuple...
-	if (Obj === null){
-	    return this.encode_inner(this.atom("null"));
+	if (Obj === null || Obj === undefined){
+	    return this.encode_inner(this.atom("nil"));
 	}
 	if (Obj.type === "Atom") {
 		return this.encode_atom(Obj);
@@ -177,7 +178,7 @@ BertClass.prototype.encode_object = function (Obj) {
 	}
 
 	// Treat the object as an associative array...
-	return this.encode_associative_array(Obj);
+	return this.encode_map(Obj);
 };
 
 BertClass.prototype.encode_atom = function (Obj) {
@@ -211,14 +212,14 @@ BertClass.prototype.encode_array = function (Obj) {
 	return s;
 };
 
-BertClass.prototype.encode_associative_array = function (Obj) {
-	var key, Arr = [];
-	for (key in Obj) {
-		if (Obj.hasOwnProperty(key)) {
-			Arr.push(this.tuple(this.atom(key), Obj[key]));
-		}
+BertClass.prototype.encode_map = function (Obj) {
+    var keys = Object.keys(Obj);
+    var i, s = this.MAP + this.int_to_bytes(keys.length, 4);
+	for (i = 0; i < keys.length; i++) {
+		s += this.encode_inner(keys[i]);
+		s += this.encode_inner(Obj[keys[i]]);
 	}
-	return this.encode_array(Arr);
+	return s;
 };
 
 
@@ -255,6 +256,8 @@ BertClass.prototype.decode_inner = function (S) {
 		return this.decode_large_tuple(S, 4);
 	case this.NIL:
 		return this.decode_nil(S);
+	case this.MAP:
+		return this.decode_map(S);
 	default:
 		throw ("Unexpected BERT type: " + S.charCodeAt(0));
 	}
@@ -339,6 +342,24 @@ BertClass.prototype.decode_list = function (S) {
 	S = S.substring(1);
 	return {
 		value: Arr,
+		rest: S
+	};
+};
+
+BertClass.prototype.decode_map = function (S) {
+	var Size, i, El, Key, Value, Map = {};
+	Size = this.bytes_to_int(S, 4);
+	S = S.substring(4);
+	for (i = 0; i < Size; i++) {
+		El = this.decode_inner(S);
+        Key = El.value;
+		El = this.decode_inner(El.rest);
+        Value = El.value;
+        Map[Key] = Value;
+		S = El.rest;
+	}
+	return {
+		value: Map,
 		rest: S
 	};
 };
