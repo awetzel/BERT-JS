@@ -3,14 +3,12 @@
 // Contributions by Ben Browning (@bbrowning)
 // See MIT-LICENSE for licensing information.
 
-
 // BERT-JS is a Javascript implementation of Binary Erlang Term Serialization.
 // - http://github.com/rklophaus/BERT-JS
 //
 // References:
 // - http://www.erlang-factory.com/upload/presentations/36/tom_preston_werner_erlectricity.pdf
 // - http://www.erlang.org/doc/apps/erts/erl_ext_dist.html#8
-
 
 // - CLASSES -
 
@@ -238,7 +236,7 @@ BertClass.prototype.decode_inner = function (S) {
 	case this.BINARY:
 		return this.decode_binary(S);
 	case this.SMALL_INTEGER:
-		return this.decode_integer(S, 1);
+		return this.decode_integer(S, 1, true);
 	case this.INTEGER:
 		return this.decode_integer(S, 4);
 	case this.SMALL_BIG:
@@ -288,8 +286,8 @@ BertClass.prototype.decode_binary = function (S) {
 	};
 };
 
-BertClass.prototype.decode_integer = function (S, Count) {
-	var Value = this.bytes_to_int(S, Count);
+BertClass.prototype.decode_integer = function (S, Count, unsigned) {
+	var Value = this.bytes_to_int(S, Count, unsigned);
 	S = S.substring(Count);
 	return {
 		value: Value,
@@ -398,9 +396,9 @@ BertClass.prototype.int_to_bytes = function (Int, Length) {
 
 // Read a big-endian encoded integer from the first Length bytes
 // of the supplied string.
-BertClass.prototype.bytes_to_int = function (S, Length) {
+BertClass.prototype.bytes_to_int = function (S, Length, unsigned) {
 	var isNegative, i, n, Num = 0;
-	isNegative = (S.charCodeAt(0) > 128);
+	isNegative = !unsigned && (S.charCodeAt(0) > 128);
 	for (i = 0; i < Length; i++) {
 		n = S.charCodeAt(i);
 		if (isNegative) {
